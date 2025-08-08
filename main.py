@@ -14,10 +14,6 @@ except ImportError:
     COLORS = False
 
 
-def get_time():
-    return datetime.now().strftime("%H:%M:%S")
-
-
 async def chat_client():
     SERVER_IP = "192.168.1.123"
     PORT = "8080"
