@@ -27,17 +27,17 @@ async def chat_client():
         return
 
     uri = f"ws://{SERVER_IP}:{PORT}/ws?id={CLIENT_ID}"
-    print(f"[{get_time()}] 🌐 Подключаюсь к {uri}...")
+    print(f"🌐 Подключаюсь к {uri}...")
 
     try:
         async with websockets.connect(uri) as websocket:
-            print(f"[{get_time()}] ✅ Успешно подключён как '{CLIENT_ID}'")
+            print(f"✅ Успешно подключён как '{CLIENT_ID}'")
 
             # === Отправка сообщений ===
             async def send_messages():
                 while True:
                     try:
-                        prompt = f"[{get_time()}] ➤ Отправить [кому:сообщение]: "
+                        prompt = f"➤ Отправить [кому:сообщение]: "
                         if COLORS:
                             prompt = Fore.BLUE + prompt + Style.RESET_ALL
                         user_input = await asyncio.get_event_loop().run_in_executor(None, input, prompt)
@@ -46,7 +46,7 @@ async def chat_client():
                             continue
 
                         if ':' not in user_input:
-                            print(f"[{get_time()}] ❌ Формат: 'id_получателя: сообщение'")
+                            print(f"❌ Формат: 'id_получателя: сообщение'")
                             continue
 
                         to_id, message = user_input.split(':', 1)
@@ -54,7 +54,7 @@ async def chat_client():
                         message = message.strip()
 
                         # Добавляем временную метку
-                        text_with_time = f"[{get_time()}] {message}"
+                        text_with_time = f"{message}"
 
                         # Кодируем в байты (не в base64!)
                         data_bytes = text_with_time.encode('utf-8')  # → bytes
@@ -67,10 +67,10 @@ async def chat_client():
                         }
 
                         await websocket.send(json.dumps(payload))
-                        print(f"[{get_time()}] ✉️  Отправлено -> {to_id}")
+                        print(f"✉️  Отправлено -> {to_id}")
 
                     except Exception as e:
-                        print(f"[{get_time()}] ❌ Ошибка отправки: {e}")
+                        print(f"❌ Ошибка отправки: {e}")
                         break
 
             # === Приём сообщений ===
@@ -88,25 +88,25 @@ async def chat_client():
                             if isinstance(data, list):
                                 try:
                                     text = bytes(data).decode('utf-8')
-                                    output = f"[{get_time()}] 🔔 ОТ {sender}: {text}"
+                                    output = f"🔔 ОТ {sender}: {text}"
                                 except Exception:
-                                    output = f"[{get_time()}] 🔹 Получено (не UTF-8): {bytes(data)}"
+                                    output = f"🔹 Получено (не UTF-8): {bytes(data)}"
 
                             # === Случай 2: data — строка в base64
                             elif isinstance(data, str):
                                 try:
                                     text = base64.b64decode(data).decode('utf-8')
-                                    output = f"[{get_time()}] 🔔 ОТ {sender}: {text}"
+                                    output = f"🔔 ОТ {sender}: {text}"
                                 except Exception:
-                                    output = f"[{get_time()}] 🔹 Получено (ошибка base64): {data}"
+                                    output = f"🔹 Получено (ошибка base64): {data}"
 
                             # === Случай 3: неизвестный формат
                             else:
-                                output = f"[{get_time()}] 📡 Неизвестный формат данных: {data}"
+                                output = f"📡 Неизвестный формат данных: {data}"
 
                         except json.JSONDecodeError:
                             # Если не JSON — выводим как есть
-                            output = f"[{get_time()}] 📡 RAW: {raw}"
+                            output = f"📡 RAW: {raw}"
 
                         if COLORS:
                             print(Fore.GREEN + output + Style.RESET_ALL)
@@ -114,18 +114,18 @@ async def chat_client():
                             print(output)
 
                     except websockets.ConnectionClosed:
-                        print(f"[{get_time()}] ⚠️ Соединение закрыто сервером")
+                        print(f"⚠️ Соединение закрыто сервером")
                         break
                     except Exception as e:
-                        print(f"[{get_time()}] ❌ Ошибка приёма: {e}")
+                        print(f"❌ Ошибка приёма: {e}")
                         break
 
             await asyncio.gather(send_messages(), receive_messages())
 
     except ConnectionRefusedError:
-        print(f"[{get_time()}] ❌ Не удалось подключиться. Сервер не отвечает.")
+        print(f"❌ Не удалось подключиться. Сервер не отвечает.")
     except Exception as e:
-        print(f"[{get_time()}] ❌ Ошибка подключения: {e}")
+        print(f"❌ Ошибка подключения: {e}")
 
 
 # Запуск
@@ -133,5 +133,5 @@ if __name__ == "__main__":
     try:
         asyncio.run(chat_client())
     except KeyboardInterrupt:
-        print(f"\n[{get_time()}] 👋 Соединение закрыто пользователем.")
+        print(f"\n👋 Соединение закрыто пользователем.")
         sys.exit(0)
