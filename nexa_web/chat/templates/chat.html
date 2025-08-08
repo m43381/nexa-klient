@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Nexa Чат</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
+    .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h1 { color: #333; text-align: center; }
+    #messages { height: 400px; overflow-y: scroll; border: 1px solid #ddd; padding: 10px; margin: 10px 0; background: #f9f9f9; border-radius: 5px; }
+    .msg { margin: 5px 0; padding: 5px; border-left: 3px solid #007bff; }
+    .self { color: #007bff; }
+    .other { color: #28a745; }
+    .time { font-size: 0.8em; color: #6c757d; }
+    input, button { padding: 10px; margin: 5px; width: 70%; border: 1px solid #ddd; border-radius: 5px; }
+    button { width: 25%; background: #007bff; color: white; border: none; cursor: pointer; }
+    button:hover { background: #0056b3; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>💬 Nexa Чат</h1>
+    <p><strong>Ваш ID:</strong> <code>{{ client_id }}</code></p>
+
+    <div id="messages"></div>
+
+    <input type="text" id="toId" placeholder="Кому (ID)" />
+    <input type="text" id="messageText" placeholder="Введите сообщение..." onkeydown="if(event.key==='Enter')sendMessage()" />
+    <button onclick="sendMessage()">Отправить</button>
+  </div>
+
+  <script>
+    const clientId = "{{ client_id }}";
+    const wsUrl = "{{ go_ws_url }}?id=" + encodeURIComponent(clientId);
+    const ws = new WebSocket(wsUrl);
+
+    const messagesDiv = document.getElementById("messages");
+
+    function addMessage(text, sender, isSelf = false) {
+      const div = document.createElement("div");
+      div.className = "msg " + (isSelf ? "self" : "other");
+      div.innerHTML = `<span class="sender"><strong>${sender}:</strong></span> ${text} <span class="time">${new Date().toLocaleTimeString()}</span>`;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    ws.onopen = () => addMessage("Подключено к серверу", "Система");
+    ws.onclose = () => addMessage("Соединение закрыто", "Система");
+    ws.onerror = (err) => addMessage("Ошибка: " + err.message, "Система", false);
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (!data.from || !data.data) {
+          console.warn("Некорректное сообщение:", data);
+          return;
+        }
+
+        let text;
+        const dataType = typeof data.data;
+
+        // === Случай 1: data — строка (base64)
+        if (dataType === 'string') {
+          try {
+            const binaryString = atob(data.data);  // Декодируем base64
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            text = new TextDecoder("utf-8").decode(bytes);
+          } catch (e) {
+            console.error("Base64 decode error:", e);
+            text = "(ошибка: не удалось расшифровать)";
+          }
+        }
+
+        // === Случай 2: data — массив чисел [104,101,...]
+        else if (Array.isArray(data.data)) {
+          try {
+            text = new TextDecoder("utf-8").decode(new Uint8Array(data.data));
+          } catch (e) {
+            text = "(ошибка: не удалось декодировать байты)";
+          }
+        }
+
+        // === Случай 3: неизвестный формат
+        else {
+          text = "(неизвестный формат данных)";
+        }
+
+    // Отображаем сообщение
+    addMessage(text, data.from, data.from === clientId);
+
+  } catch (e) {
+    console.error("Ошибка парсинга JSON:", e, event.data);
+    addMessage("⚠️ Ошибка: не удалось обработать сообщение", "Система");
+  }
+};
+
+    function sendMessage() {
+      const toId = document.getElementById("toId").value.trim();
+      const text = document.getElementById("messageText").value.trim();
+      if (!toId || !text) return alert("Заполните 'Кому' и сообщение");
+
+      const encoder = new TextEncoder();
+      const payload = {
+        to: toId,
+        from: clientId,
+        data: Array.from(encoder.encode(`[${new Date().toLocaleTimeString()}] ${text}`))
+      };
+
+      // ✅ Отправляем
+      ws.send(JSON.stringify(payload));
+
+      // ✅ Добавляем СВОЁ сообщение в чат (локальный echo)
+      addMessage(text, "Вы", true);  // "Вы" или `clientId`
+
+      document.getElementById("messageText").value = "";
+    }
+  </script>
+</body>
+</html>
